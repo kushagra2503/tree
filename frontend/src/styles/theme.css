@@ -1,0 +1,62 @@
+:root {
+  --bg: #faf8f4;
+  --bg-elevated: #ffffff;
+  --bg-soft: #f3efe8;
+  --bg-terminal: #141210;
+  --text: #2a241c;
+  --text-muted: #7a7166;
+  --text-faint: #a39a90;
+  --border: #e6dfd4;
+  --border-strong: #d4cbbd;
+  --accent: #c15f3c;
+  --accent-soft: #f4e4dc;
+  --accent-hover: #a84f31;
+  --success: #3f6f4e;
+  --success-soft: #e5efe7;
+  --warning: #9a6b2f;
+  --warning-soft: #f6ecd9;
+  --danger: #9b3d3d;
+  --danger-soft: #f6e4e4;
+  --shadow: 0 10px 30px rgba(42, 36, 28, 0.06);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --font: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  --font-ui: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-mono: "SF Mono", Menlo, Monaco, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(193, 95, 60, 0.08), transparent 55%),
+    radial-gradient(900px 420px at 100% 0%, rgba(63, 111, 78, 0.06), transparent 50%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

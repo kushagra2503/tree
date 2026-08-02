@@ -1,0 +1,383 @@
+.app-shell {
+  height: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 16px 20px 14px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+}
+
+.app-shell.has-session {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.wordmark {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.tagline {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.workspace {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+.app-shell.has-session .workspace {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.app-shell.has-session .field textarea {
+  min-height: 48px;
+  max-height: 96px;
+}
+
+.panel {
+  background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.providers {
+  padding: 10px 12px 12px;
+  flex-shrink: 0;
+}
+
+.providers-head,
+.composer-footer,
+.terminal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.providers-head h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.provider-row {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.provider-card {
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.provider-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.provider-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.provider-meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.provider-message {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.provider-actions {
+  display: flex;
+  align-items: center;
+}
+
+.pill {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.pill-ok {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.pill-warn {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.pill-off {
+  background: #ebe5db;
+  color: var(--text-muted);
+}
+
+.composer {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.composer-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 10px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field > span {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.field select,
+.field input,
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  outline: none;
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 64px;
+  max-height: 140px;
+  line-height: 1.45;
+}
+
+.field select:focus,
+.field input:focus,
+.field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.folder-control {
+  display: flex;
+  gap: 8px;
+}
+
+.folder-control input {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-hint {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.error-text {
+  color: var(--danger);
+}
+
+.btn {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 7px 12px;
+  font-size: 12px;
+  background: transparent;
+  color: var(--text);
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: #fffaf5;
+  border-color: var(--accent);
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn.ghost {
+  border-color: var(--border-strong);
+  background: var(--bg-elevated);
+}
+
+.btn.ghost:hover:not(:disabled) {
+  background: var(--bg-soft);
+}
+
+.btn.danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.terminal-panel {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.terminal-empty {
+  min-height: 220px;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 28px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.terminal-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 8px 8px 0;
+  overflow-x: auto;
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  padding: 9px 12px;
+  min-width: 120px;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.tab.active {
+  background: var(--bg-terminal);
+  border-color: var(--bg-terminal);
+  color: #f4efe7;
+  font-weight: 600;
+}
+
+.tab.idle {
+  background: var(--bg-elevated);
+  border-color: var(--border);
+}
+
+.terminal-toolbar {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #cfc6b8;
+  background: #1d1b18;
+}
+
+.terminal-stage {
+  position: relative;
+  min-height: 0;
+  height: 100%;
+  background: var(--bg-terminal);
+  overflow: hidden;
+}
+
+.terminal-host {
+  position: absolute;
+  inset: 0;
+  padding: 8px 10px 10px;
+  overflow: hidden;
+}
+
+.terminal-host.hidden {
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.terminal-host.active {
+  z-index: 1;
+}
+
+.terminal-host .xterm,
+.terminal-host .xterm-viewport,
+.terminal-host .xterm-screen {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+@media (max-width: 980px) {
+  .provider-row,
+  .composer-row {
+    grid-template-columns: 1fr;
+  }
+
+  .app-shell {
+    padding: 12px;
+  }
+}

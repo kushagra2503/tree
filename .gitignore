@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build outputs
+build/bin/
+frontend/dist/
+*.exe
+*.app
+*.dmg
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.log
+/tmp/
+
+# Go
+*.test
+coverage.out
