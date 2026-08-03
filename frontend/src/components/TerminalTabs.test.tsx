@@ -35,25 +35,24 @@ describe("TerminalTabs", () => {
       <TerminalTabs
         sessions={[]}
         activeId={null}
-        onSelect={vi.fn()}
+        folder=""
         onStop={vi.fn()}
         onClose={vi.fn()}
         onExited={vi.fn()}
       />
     );
-    expect(screen.getByText(/Choose an app/i)).toBeInTheDocument();
+    expect(screen.getByText(/Terminal, rebuilt around the work/i)).toBeInTheDocument();
   });
 
-  it("routes tab selection and cleanup actions", async () => {
+  it("routes active-session stop and cleanup actions", async () => {
     const user = userEvent.setup();
-    const onSelect = vi.fn();
     const onStop = vi.fn();
     const onClose = vi.fn();
-    render(
+    const { rerender } = render(
       <TerminalTabs
         sessions={sessions}
         activeId="s1"
-        onSelect={onSelect}
+        folder="/tmp/a"
         onStop={onStop}
         onClose={onClose}
         onExited={vi.fn()}
@@ -61,11 +60,21 @@ describe("TerminalTabs", () => {
     );
 
     expect(screen.getByTestId("term-s1")).toHaveAttribute("data-active", "1");
-    await user.click(screen.getByRole("button", { name: "codex · two" }));
-    expect(onSelect).toHaveBeenCalledWith("s2");
     await user.click(screen.getByRole("button", { name: "Stop" }));
     expect(onStop).toHaveBeenCalledWith("s1");
-    await user.click(screen.getByRole("button", { name: "Close" }));
-    expect(onClose).toHaveBeenCalledWith("s1");
+
+    rerender(
+      <TerminalTabs
+        sessions={sessions}
+        activeId="s2"
+        folder="/tmp/b"
+        onStop={onStop}
+        onClose={onClose}
+        onExited={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId("term-s2")).toHaveAttribute("data-active", "1");
+    await user.click(screen.getByRole("button", { name: "Close session" }));
+    expect(onClose).toHaveBeenCalledWith("s2");
   });
 });

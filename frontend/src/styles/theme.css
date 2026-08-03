@@ -1,28 +1,23 @@
 :root {
-  --bg: #faf8f4;
-  --bg-elevated: #ffffff;
-  --bg-soft: #f3efe8;
-  --bg-terminal: #141210;
-  --text: #2a241c;
-  --text-muted: #7a7166;
-  --text-faint: #a39a90;
-  --border: #e6dfd4;
-  --border-strong: #d4cbbd;
-  --accent: #c15f3c;
-  --accent-soft: #f4e4dc;
-  --accent-hover: #a84f31;
-  --success: #3f6f4e;
-  --success-soft: #e5efe7;
-  --warning: #9a6b2f;
-  --warning-soft: #f6ecd9;
-  --danger: #9b3d3d;
-  --danger-soft: #f6e4e4;
-  --shadow: 0 10px 30px rgba(42, 36, 28, 0.06);
-  --radius: 12px;
-  --radius-sm: 8px;
-  --font: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
-  --font-ui: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
-  --font-mono: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  color-scheme: dark;
+  --bg: #0d1116;
+  --surface-base: #151a20;
+  --surface-deep: #11161b;
+  --surface-raised: #1b2128;
+  --surface-hover: #222a32;
+  --text: #e8ebed;
+  --text-muted: #9ba4ab;
+  --text-dim: #626d76;
+  --border: rgba(184, 197, 207, 0.1);
+  --border-strong: rgba(184, 197, 207, 0.18);
+  --accent: #cd6f51;
+  --accent-soft: #eaa187;
+  --accent-hover: #b85f44;
+  --success: #71b38e;
+  --warning: #c8a15d;
+  --danger: #c65f59;
+  --font-ui: "SF Pro Text", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "SFMono-Regular", "SF Mono", Menlo, Monaco, Consolas, monospace;
 }
 
 * {
@@ -32,16 +27,18 @@
 html,
 body,
 #root {
-  margin: 0;
   width: 100%;
   height: 100%;
+  margin: 0;
   overflow: hidden;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(193, 95, 60, 0.08), transparent 55%),
-    radial-gradient(900px 420px at 100% 0%, rgba(63, 111, 78, 0.06), transparent 50%),
-    var(--bg);
+}
+
+body {
   color: var(--text);
+  background: var(--bg);
   font-family: var(--font-ui);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -58,5 +55,31 @@ button {
 
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: 0.45;
+}
+
+::selection {
+  color: #fff;
+  background: rgba(205, 111, 81, 0.42);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: rgba(145, 156, 166, 0.25);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(145, 156, 166, 0.4);
+  background-clip: padding-box;
 }

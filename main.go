@@ -24,7 +24,7 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 250, G: 248, B: 245, A: 1},
+		BackgroundColour: &options.RGBA{R: 13, G: 17, B: 22, A: 1},
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
 		Bind: []interface{}{
@@ -32,10 +32,10 @@ func main() {
 		},
 		Mac: &mac.Options{
 			TitleBar: &mac.TitleBar{
-				TitlebarAppearsTransparent: false,
-				HideTitle:                  false,
+				TitlebarAppearsTransparent: true,
+				HideTitle:                  true,
 				HideTitleBar:               false,
-				FullSizeContent:            false,
+				FullSizeContent:            true,
 				UseToolbar:                 false,
 				HideToolbarSeparator:       true,
 			},

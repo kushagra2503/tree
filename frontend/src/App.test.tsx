@@ -77,7 +77,7 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "Browse" }));
     await waitFor(() => {
-      expect(screen.getByDisplayValue("/tmp/project")).toBeInTheDocument();
+      expect(screen.getAllByText("/tmp/project").length).toBeGreaterThan(0);
     });
 
     await user.type(screen.getByLabelText("Prompt"), "fix lint");
@@ -100,6 +100,7 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "Tree", level: 1 })).toBeInTheDocument();
     await waitFor(() => expect(mocks.GetProviders).toHaveBeenCalled());
     expect(document.querySelector(".app-shell")).toBeTruthy();
-    expect(document.querySelector(".provider-row")).toBeTruthy();
+    expect(document.querySelector(".desktop-grid")).toBeTruthy();
+    expect(document.querySelector(".provider-list")).toBeTruthy();
   });
 });

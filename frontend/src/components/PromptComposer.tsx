@@ -33,13 +33,17 @@ export function PromptComposer({
     folder.trim().length > 0;
 
   return (
-    <section className="composer panel" aria-label="Prompt composer">
-      <div className="composer-row">
-        <label className="field">
-          <span>App</span>
+    <section className="command-composer" aria-label="Prompt composer">
+      <div className="composer-controls">
+        <label className="agent-select">
+          <span className="sr-only">App</span>
+          <span className={`provider-mark provider-mark-${providerId}`} aria-hidden="true">
+            {providerId === "claude" ? "A" : providerId === "codex" ? "O" : "C"}
+          </span>
           <select
             value={providerId}
             onChange={(e) => onProviderChange(e.target.value)}
+            aria-label="App"
           >
             {providers.map((p) => (
               <option key={p.id} value={p.id} disabled={!p.installed}>
@@ -48,31 +52,36 @@ export function PromptComposer({
               </option>
             ))}
           </select>
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="m5 6 3 3 3-3" />
+          </svg>
         </label>
 
-        <label className="field folder-field">
-          <span>Folder</span>
-          <div className="folder-control">
-            <input
-              readOnly
-              value={folder}
-              placeholder="Choose a project folder"
-              title={folder}
-            />
-            <button type="button" className="btn ghost" onClick={onFolderPick}>
-              Browse
-            </button>
-          </div>
-        </label>
+        <button
+          type="button"
+          className="folder-picker"
+          onClick={onFolderPick}
+          aria-label="Browse"
+          title={folder || "Choose a project folder"}
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M2.8 5.6h5l1.5 1.7h7.9v8.2H2.8z" />
+          </svg>
+          <span className="folder-picker-path">{folder || "Choose project"}</span>
+          <span className="folder-picker-action">Browse</span>
+        </button>
       </div>
 
-      <label className="field">
-        <span>Prompt</span>
+      <div className="command-input">
+        <span className="prompt-sigil" aria-hidden="true">›</span>
+        <label className="prompt-field">
+          <span className="sr-only">Prompt</span>
         <textarea
           value={prompt}
           onChange={(e) => onPromptChange(e.target.value)}
-          placeholder="Ask the selected CLI to work in this folder…"
-          rows={4}
+            aria-label="Prompt"
+            placeholder="What do you want to build?"
+            rows={2}
           onKeyDown={(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && canRun) {
               e.preventDefault();
@@ -80,15 +89,27 @@ export function PromptComposer({
             }
           }}
         />
-      </label>
-
-      <div className="composer-footer">
-        <div className="composer-hint">
-          {error ? <span className="error-text">{error}</span> : <span>⌘↵ to run</span>}
-        </div>
-        <button type="button" className="btn primary" disabled={!canRun} onClick={onRun}>
-          {busy ? "Starting…" : "Run"}
+        </label>
+        <button
+          type="button"
+          className="send-button"
+          disabled={!canRun}
+          onClick={onRun}
+          aria-label="Run"
+          title="Run prompt (⌘↵)"
+        >
+          {busy ? (
+            <span className="send-spinner" aria-hidden="true" />
+          ) : (
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="m5.5 10 4.5-4.5 4.5 4.5M10 5.8v8.7" />
+            </svg>
+          )}
         </button>
+      </div>
+      <div className="composer-footnote">
+        {error ? <span className="error-text">{error}</span> : <span>⌘ Enter to run</span>}
+        <span>Interactive permissions stay in the terminal</span>
       </div>
     </section>
   );
