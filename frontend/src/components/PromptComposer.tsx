@@ -1,4 +1,4 @@
-import { PROVIDER_LABELS, ProviderStatus } from "../types";
+import { providerLabel, type ProviderStatus } from "../types";
 
 interface Props {
   providers: ProviderStatus[];
@@ -43,7 +43,7 @@ export function PromptComposer({
           >
             {providers.map((p) => (
               <option key={p.id} value={p.id} disabled={!p.installed}>
-                {PROVIDER_LABELS[p.id] ?? p.name}
+                {providerLabel(p.id, p.name)}
                 {!p.installed ? " (missing)" : ""}
               </option>
             ))}

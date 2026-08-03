@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -21,12 +23,22 @@ const (
 	eventProviders      = "providers:updated"
 )
 
+const (
+	// providerProbeTimeout bounds a full sweep of provider version/auth checks.
+	providerProbeTimeout = 20 * time.Second
+	// loginSettleDelay lets a provider persist credentials before re-probing.
+	loginSettleDelay = 1200 * time.Millisecond
+)
+
 // App is the Wails-bound application API.
 type App struct {
-	ctx      context.Context
-	cancel   context.CancelFunc
-	terms    *terminal.Manager
-	pathEnv  string
+	ctx    context.Context
+	cancel context.CancelFunc
+	terms  *terminal.Manager
+
+	// mu guards pathEnv, which Wails may touch from several binding goroutines.
+	mu      sync.Mutex
+	pathEnv string
 }
 
 // NewApp creates a new App.
@@ -38,7 +50,7 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx, a.cancel = context.WithCancel(ctx)
-	a.pathEnv = providers.LoginShellPATH()
+	a.refreshShellPATH()
 	a.terms.SetHandlers(
 		func(ev terminal.OutputEvent) {
 			runtime.EventsEmit(a.ctx, eventTerminalOutput, ev)
@@ -56,20 +68,45 @@ func (a *App) shutdown(ctx context.Context) {
 	a.terms.Shutdown()
 }
 
+// shellPATH returns the cached login-shell PATH, probing once on first use.
+func (a *App) shellPATH() string {
+	a.mu.Lock()
+	cached := a.pathEnv
+	a.mu.Unlock()
+	if cached != "" {
+		return cached
+	}
+	return a.refreshShellPATH()
+}
+
+// refreshShellPATH re-probes the login-shell PATH and caches it. The probe runs
+// outside the lock because it spawns a shell.
+func (a *App) refreshShellPATH() string {
+	path := providers.LoginShellPATH()
+	a.mu.Lock()
+	a.pathEnv = path
+	a.mu.Unlock()
+	return path
+}
+
+// baseCtx returns the app context, falling back to Background before startup.
+func (a *App) baseCtx() context.Context {
+	if a.ctx == nil {
+		return context.Background()
+	}
+	return a.ctx
+}
+
 // GetProviders returns current CLI connection status.
 func (a *App) GetProviders() []providers.Status {
-	base := a.ctx
-	if base == nil {
-		base = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(base, 20*time.Second)
+	ctx, cancel := context.WithTimeout(a.baseCtx(), providerProbeTimeout)
 	defer cancel()
-	return providers.ProbeAll(ctx)
+	return providers.ProbeAll(ctx, a.shellPATH())
 }
 
 // RefreshProviders re-probes PATH and auth status.
 func (a *App) RefreshProviders() []providers.Status {
-	a.pathEnv = providers.LoginShellPATH()
+	a.refreshShellPATH()
 	status := a.GetProviders()
 	if a.ctx != nil {
 		runtime.EventsEmit(a.ctx, eventProviders, status)
@@ -77,19 +114,25 @@ func (a *App) RefreshProviders() []providers.Status {
 	return status
 }
 
-// ConnectProvider launches the provider's official login flow.
-func (a *App) ConnectProvider(providerID string) error {
+// resolveProvider looks up a provider and its executable, reporting the
+// provider's install hint when the binary cannot be found.
+func (a *App) resolveProvider(providerID string) (providers.Provider, string, error) {
 	p, err := providers.ByID(providerID)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
-	pathEnv := a.pathEnv
-	if pathEnv == "" {
-		pathEnv = providers.LoginShellPATH()
-	}
-	bin, err := providers.ResolveBinary(p.BinaryNames(), pathEnv)
+	bin, err := providers.ResolveBinary(p.BinaryNames(), a.shellPATH())
 	if err != nil {
-		return fmt.Errorf("%s is not installed. %s", p.Name(), p.InstallHint())
+		return nil, "", fmt.Errorf("%s is not installed. %s", p.Name(), p.InstallHint())
+	}
+	return p, bin, nil
+}
+
+// ConnectProvider launches the provider's official login flow.
+func (a *App) ConnectProvider(providerID string) error {
+	p, bin, err := a.resolveProvider(providerID)
+	if err != nil {
+		return err
 	}
 	path, args := p.LoginCommand(bin)
 	cmd := exec.Command(path, args...)
@@ -101,7 +144,7 @@ func (a *App) ConnectProvider(providerID string) error {
 	go func() {
 		_ = cmd.Wait()
 		// Give credentials a moment to settle, then refresh.
-		time.Sleep(1200 * time.Millisecond)
+		time.Sleep(loginSettleDelay)
 		if a.ctx != nil {
 			a.RefreshProviders()
 		}
@@ -111,64 +154,38 @@ func (a *App) ConnectProvider(providerID string) error {
 
 // SelectFolder opens a native directory picker.
 func (a *App) SelectFolder() (string, error) {
-	path, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
 		Title: "Choose project folder",
 	})
-	if err != nil {
-		return "", err
-	}
-	return path, nil
 }
 
 // StartSession starts a selected provider CLI in an embedded terminal.
 func (a *App) StartSession(providerID, prompt, folder string, cols, rows int) (terminal.Info, error) {
 	prompt = strings.TrimSpace(prompt)
-	folder = strings.TrimSpace(folder)
 	if prompt == "" {
 		return terminal.Info{}, fmt.Errorf("enter a prompt")
 	}
-	if folder == "" {
-		return terminal.Info{}, fmt.Errorf("choose a project folder")
-	}
-	info, err := os.Stat(folder)
-	if err != nil || !info.IsDir() {
-		return terminal.Info{}, fmt.Errorf("project folder is not a directory")
-	}
-	folder, err = filepath.Abs(folder)
+	folder, err := absProjectDir(folder)
 	if err != nil {
 		return terminal.Info{}, err
 	}
 
-	p, err := providers.ByID(providerID)
+	p, bin, err := a.resolveProvider(providerID)
 	if err != nil {
 		return terminal.Info{}, err
 	}
-	pathEnv := a.pathEnv
-	if pathEnv == "" {
-		pathEnv = providers.LoginShellPATH()
-	}
-	bin, err := providers.ResolveBinary(p.BinaryNames(), pathEnv)
+	spec, err := p.BuildLaunch(bin, prompt, folder)
 	if err != nil {
-		return terminal.Info{}, fmt.Errorf("%s is not installed. %s", p.Name(), p.InstallHint())
+		return terminal.Info{}, err
 	}
 
-	// Soft auth check — still allow launch if status is unclear, but warn via error if clearly missing.
-	authCtx, cancel := context.WithTimeout(a.ctx, 6*time.Second)
-	ok, _ := p.CheckAuth(authCtx, bin)
-	cancel()
-	if !ok {
-		// Do not hard-block; many CLIs can still open and prompt for login in-terminal.
-		// Soft guidance is returned only when binary missing above.
-		_ = ok
-	}
-
-	if cols <= 0 {
-		cols = 120
-	}
-	if rows <= 0 {
-		rows = 36
-	}
-	return a.terms.Start(a.ctx, providerID, prompt, folder, uint16(cols), uint16(rows))
+	return a.terms.Start(a.ctx, terminal.StartRequest{
+		ProviderID: providerID,
+		Prompt:     prompt,
+		Spec:       spec,
+		Cols:       clampDimension(cols),
+		Rows:       clampDimension(rows),
+	})
 }
 
 // WriteSession writes base64-encoded terminal input.
@@ -194,4 +211,30 @@ func (a *App) CloseSession(sessionID string) error {
 // ListSessions returns current terminal sessions.
 func (a *App) ListSessions() []terminal.Info {
 	return a.terms.List()
+}
+
+// absProjectDir validates that folder is an existing directory and returns its
+// absolute path.
+func absProjectDir(folder string) (string, error) {
+	folder = strings.TrimSpace(folder)
+	if folder == "" {
+		return "", fmt.Errorf("choose a project folder")
+	}
+	info, err := os.Stat(folder)
+	if err != nil || !info.IsDir() {
+		return "", fmt.Errorf("project folder is not a directory")
+	}
+	return filepath.Abs(folder)
+}
+
+// clampDimension narrows a UI-supplied PTY dimension into uint16. Zero means
+// "use the terminal package default".
+func clampDimension(v int) uint16 {
+	if v <= 0 {
+		return 0
+	}
+	if v > math.MaxUint16 {
+		return math.MaxUint16
+	}
+	return uint16(v)
 }

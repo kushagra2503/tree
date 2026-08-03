@@ -1,9 +1,6 @@
 package providers
 
-import (
-	"context"
-	"strings"
-)
+import "context"
 
 type claudeProvider struct{}
 
@@ -18,26 +15,11 @@ func (p *claudeProvider) InstallHint() string {
 }
 
 func (p *claudeProvider) Version(ctx context.Context, binaryPath string) string {
-	out, _, _ := runQuiet(ctx, binaryPath, "--version")
-	return firstNonEmptyLine(out)
+	return versionFromFlag(ctx, binaryPath)
 }
 
 func (p *claudeProvider) CheckAuth(ctx context.Context, binaryPath string) (bool, string) {
-	out, code, err := runQuiet(ctx, binaryPath, "auth", "status")
-	if err != nil && code < 0 {
-		return false, "Could not check auth status"
-	}
-	if code == 0 {
-		return true, "Connected"
-	}
-	lower := strings.ToLower(out)
-	if strings.Contains(lower, "not logged") || strings.Contains(lower, "logged out") {
-		return false, "Installed — sign in to connect"
-	}
-	if out != "" {
-		return false, firstNonEmptyLine(out)
-	}
-	return false, "Installed — sign in to connect"
+	return checkAuthViaStatus(ctx, binaryPath, "auth", "status")
 }
 
 func (p *claudeProvider) LoginCommand(binaryPath string) (string, []string) {
@@ -45,16 +27,5 @@ func (p *claudeProvider) LoginCommand(binaryPath string) (string, []string) {
 }
 
 func (p *claudeProvider) BuildLaunch(binaryPath, prompt, dir string) (LaunchSpec, error) {
-	prompt = strings.TrimSpace(prompt)
-	if prompt == "" {
-		return LaunchSpec{}, errEmptyPrompt
-	}
-	if strings.TrimSpace(dir) == "" {
-		return LaunchSpec{}, errEmptyDir
-	}
-	return LaunchSpec{
-		Path: binaryPath,
-		Args: []string{prompt},
-		Dir:  dir,
-	}, nil
+	return buildLaunch(binaryPath, prompt, dir)
 }
