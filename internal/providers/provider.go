@@ -18,6 +18,15 @@ const (
 	Cursor ID = "cursor"
 )
 
+// Status messages surfaced to the UI. Kept here so every provider reports the
+// same wording for the same state.
+const (
+	msgConnected    = "Connected"
+	msgNotInstalled = "Not installed"
+	msgSignIn       = "Installed — sign in to connect"
+	msgAuthUnknown  = "Could not check auth status"
+)
+
 // Status describes detection and auth state for a provider.
 type Status struct {
 	ID            string `json:"id"`
@@ -56,13 +65,6 @@ var registry = []Provider{
 	&cursorProvider{},
 }
 
-// All returns the built-in providers in display order.
-func All() []Provider {
-	out := make([]Provider, len(registry))
-	copy(out, registry)
-	return out
-}
-
 // ByID looks up a provider by id.
 func ByID(id string) (Provider, error) {
 	for _, p := range registry {
@@ -79,7 +81,7 @@ func ProbeStatus(ctx context.Context, p Provider, pathEnv string) Status {
 		ID:          string(p.ID()),
 		Name:        p.Name(),
 		InstallHint: p.InstallHint(),
-		Message:     "Not installed",
+		Message:     msgNotInstalled,
 	}
 
 	path, err := ResolveBinary(p.BinaryNames(), pathEnv)
@@ -98,21 +100,68 @@ func ProbeStatus(ctx context.Context, p Provider, pathEnv string) Status {
 	if msg != "" {
 		status.Message = msg
 	} else if ok {
-		status.Message = "Connected"
+		status.Message = msgConnected
 	} else {
-		status.Message = "Installed — sign in to connect"
+		status.Message = msgSignIn
 	}
 	return status
 }
 
-// ProbeAll returns status for every registered provider.
-func ProbeAll(ctx context.Context) []Status {
-	pathEnv := LoginShellPATH()
+// ProbeAll returns status for every registered provider. An empty pathEnv falls
+// back to probing the login-shell PATH.
+func ProbeAll(ctx context.Context, pathEnv string) []Status {
+	if pathEnv == "" {
+		pathEnv = LoginShellPATH()
+	}
 	out := make([]Status, 0, len(registry))
 	for _, p := range registry {
 		out = append(out, ProbeStatus(ctx, p, pathEnv))
 	}
 	return out
+}
+
+// buildLaunch validates the inputs shared by every provider and returns an
+// argv spec that passes the prompt as a single positional argument. Using argv
+// directly (never a shell string) is what keeps prompts from being interpolated.
+func buildLaunch(binaryPath, prompt, dir string) (LaunchSpec, error) {
+	prompt = strings.TrimSpace(prompt)
+	if prompt == "" {
+		return LaunchSpec{}, errEmptyPrompt
+	}
+	if strings.TrimSpace(dir) == "" {
+		return LaunchSpec{}, errEmptyDir
+	}
+	return LaunchSpec{
+		Path: binaryPath,
+		Args: []string{prompt},
+		Dir:  dir,
+	}, nil
+}
+
+// versionFromFlag reports the CLI version via the conventional --version flag.
+func versionFromFlag(ctx context.Context, binaryPath string) string {
+	out, _, _ := runQuiet(ctx, binaryPath, "--version")
+	return firstNonEmptyLine(out)
+}
+
+// checkAuthViaStatus interprets a status subcommand that exits zero when the
+// user is signed in. Providers whose output needs richer parsing (see cursor)
+// implement CheckAuth themselves.
+func checkAuthViaStatus(ctx context.Context, binaryPath string, args ...string) (bool, string) {
+	out, code, err := runQuiet(ctx, binaryPath, args...)
+	if err != nil && code < 0 {
+		return false, msgAuthUnknown
+	}
+	if code == 0 {
+		return true, msgConnected
+	}
+	if looksUnauthenticated(strings.ToLower(out)) {
+		return false, msgSignIn
+	}
+	if out != "" {
+		return false, firstNonEmptyLine(out)
+	}
+	return false, msgSignIn
 }
 
 func runQuiet(ctx context.Context, path string, args ...string) (string, int, error) {
@@ -140,21 +189,23 @@ func firstNonEmptyLine(s string) string {
 	return ""
 }
 
-// looksAuthenticated heuristically interprets CLI status output.
-func looksAuthenticated(raw, lower string) bool {
-	if lower == "" {
-		lower = strings.ToLower(raw)
-	}
-	if strings.Contains(lower, `"authenticated":false`) ||
+// looksUnauthenticated reports an explicit signed-out signal in CLI output.
+// lower must already be lower-cased.
+func looksUnauthenticated(lower string) bool {
+	return strings.Contains(lower, `"authenticated":false`) ||
 		strings.Contains(lower, "not authenticated") ||
 		strings.Contains(lower, "not logged") ||
-		strings.Contains(lower, "logged out") {
+		strings.Contains(lower, "logged out")
+}
+
+// looksAuthenticated reports an explicit signed-in signal in CLI output.
+// An explicit signed-out signal always wins over a signed-in one.
+func looksAuthenticated(out string) bool {
+	lower := strings.ToLower(out)
+	if looksUnauthenticated(lower) {
 		return false
 	}
-	if strings.Contains(lower, `"authenticated":true`) ||
+	return strings.Contains(lower, `"authenticated":true`) ||
 		strings.Contains(lower, "logged in") ||
-		strings.Contains(lower, `"logged_in":true`) {
-		return true
-	}
-	return false
+		strings.Contains(lower, `"logged_in":true`)
 }

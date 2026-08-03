@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProviderCards } from "./components/ProviderCards";
 import { PromptComposer } from "./components/PromptComposer";
 import { TerminalTabs } from "./components/TerminalTabs";
-import type { LocalSession, ProviderStatus } from "./types";
+import { placeholderProviders, type LocalSession, type ProviderStatus } from "./types";
+import { errorMessage } from "./lib/errors";
+import { DEFAULT_COLS, DEFAULT_ROWS } from "./lib/events";
 import {
   CloseSession,
   ConnectProvider,
@@ -14,41 +16,21 @@ import {
 } from "../wailsjs/go/main/App";
 import "./App.css";
 
-const EMPTY_PROVIDERS: ProviderStatus[] = [
-  {
-    id: "claude",
-    name: "Claude Code",
-    installed: false,
-    path: "",
-    version: "",
-    authenticated: false,
-    message: "Checking…",
-    installHint: "",
-  },
-  {
-    id: "codex",
-    name: "Codex",
-    installed: false,
-    path: "",
-    version: "",
-    authenticated: false,
-    message: "Checking…",
-    installHint: "",
-  },
-  {
-    id: "cursor",
-    name: "Cursor",
-    installed: false,
-    path: "",
-    version: "",
-    authenticated: false,
-    message: "Checking…",
-    installHint: "",
-  },
-];
+const FALLBACK_PROVIDERS = placeholderProviders();
+
+/**
+ * The backend re-probes automatically once a login flow exits, but that flow is
+ * detached — poll once more after a beat in case it outlived the CLI process.
+ */
+const CONNECT_REFRESH_DELAY_MS = 2500;
+
+/** Clears the running flag on the matching session, leaving others untouched. */
+function markStopped(session: LocalSession, id: string): LocalSession {
+  return session.id === id ? { ...session, running: false } : session;
+}
 
 function App() {
-  const [providers, setProviders] = useState<ProviderStatus[]>(EMPTY_PROVIDERS);
+  const [providers, setProviders] = useState<ProviderStatus[]>(FALLBACK_PROVIDERS);
   const [loadingProviders, setLoadingProviders] = useState(true);
   const [providerId, setProviderId] = useState("claude");
   const [folder, setFolder] = useState("");
@@ -58,37 +40,31 @@ function App() {
   const [sessions, setSessions] = useState<LocalSession[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
+  // Both the initial probe and an explicit refresh share this flow; they differ
+  // only in which backend call produces the list.
+  const loadProviders = useCallback(async (fetchProviders: () => Promise<ProviderStatus[]>) => {
     setLoadingProviders(true);
     try {
-      const list = (await RefreshProviders()) as ProviderStatus[];
-      setProviders(list?.length ? list : EMPTY_PROVIDERS);
-      const installed = list?.find((p) => p.installed);
+      const list = await fetchProviders();
+      setProviders(list?.length ? list : FALLBACK_PROVIDERS);
+      // Keep the current selection while it is still installed, otherwise fall
+      // back to the first provider that is.
       setProviderId((current) => {
         if (list?.some((p) => p.id === current && p.installed)) return current;
-        return installed?.id ?? current;
+        return list?.find((p) => p.installed)?.id ?? current;
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     } finally {
       setLoadingProviders(false);
     }
   }, []);
 
+  const refresh = useCallback(() => loadProviders(RefreshProviders), [loadProviders]);
+
   useEffect(() => {
-    void (async () => {
-      try {
-        const list = (await GetProviders()) as ProviderStatus[];
-        setProviders(list?.length ? list : EMPTY_PROVIDERS);
-        const installed = list?.find((p) => p.installed);
-        if (installed) setProviderId(installed.id);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-      } finally {
-        setLoadingProviders(false);
-      }
-    })();
-  }, []);
+    void loadProviders(GetProviders);
+  }, [loadProviders]);
 
   const onConnect = async (id: string) => {
     setError("");
@@ -96,9 +72,9 @@ function App() {
       await ConnectProvider(id);
       window.setTimeout(() => {
         void refresh();
-      }, 2500);
+      }, CONNECT_REFRESH_DELAY_MS);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     }
   };
 
@@ -108,7 +84,7 @@ function App() {
       const path = await SelectFolder();
       if (path) setFolder(path);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     }
   };
 
@@ -116,7 +92,7 @@ function App() {
     setError("");
     setBusy(true);
     try {
-      const info = await StartSession(providerId, prompt, folder, 120, 36);
+      const info = await StartSession(providerId, prompt, folder, DEFAULT_COLS, DEFAULT_ROWS);
       const local: LocalSession = {
         id: info.id,
         provider: info.provider,
@@ -128,7 +104,7 @@ function App() {
       setSessions((prev) => [...prev, local]);
       setActiveId(local.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -137,9 +113,9 @@ function App() {
   const onStop = async (id: string) => {
     try {
       await StopSession(id);
-      setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, running: false } : s)));
+      setSessions((prev) => prev.map((s) => markStopped(s, id)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     }
   };
 
@@ -159,7 +135,7 @@ function App() {
   };
 
   const onExited = useCallback((id: string, _code: number) => {
-    setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, running: false } : s)));
+    setSessions((prev) => prev.map((s) => markStopped(s, id)));
   }, []);
 
   const subtitle = useMemo(() => {

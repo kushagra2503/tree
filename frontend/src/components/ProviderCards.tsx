@@ -1,4 +1,4 @@
-import { PROVIDER_LABELS, ProviderStatus } from "../types";
+import { providerLabel, type ProviderStatus } from "../types";
 
 interface Props {
   providers: ProviderStatus[];
@@ -29,7 +29,7 @@ export function ProviderCards({ providers, loading, onConnect, onRefresh }: Prop
             <article key={p.id} className={`provider-card tone-${tone}`}>
               <div className="provider-card-top">
                 <div>
-                  <div className="provider-name">{PROVIDER_LABELS[p.id] ?? p.name}</div>
+                  <div className="provider-name">{providerLabel(p.id, p.name)}</div>
                   <div className="provider-meta">
                     {p.installed ? p.version || "Installed" : "Not installed"}
                   </div>

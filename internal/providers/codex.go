@@ -1,9 +1,6 @@
 package providers
 
-import (
-	"context"
-	"strings"
-)
+import "context"
 
 type codexProvider struct{}
 
@@ -18,22 +15,11 @@ func (p *codexProvider) InstallHint() string {
 }
 
 func (p *codexProvider) Version(ctx context.Context, binaryPath string) string {
-	out, _, _ := runQuiet(ctx, binaryPath, "--version")
-	return firstNonEmptyLine(out)
+	return versionFromFlag(ctx, binaryPath)
 }
 
 func (p *codexProvider) CheckAuth(ctx context.Context, binaryPath string) (bool, string) {
-	out, code, err := runQuiet(ctx, binaryPath, "login", "status")
-	if err != nil && code < 0 {
-		return false, "Could not check auth status"
-	}
-	if code == 0 {
-		return true, "Connected"
-	}
-	if out != "" {
-		return false, firstNonEmptyLine(out)
-	}
-	return false, "Installed — sign in to connect"
+	return checkAuthViaStatus(ctx, binaryPath, "login", "status")
 }
 
 func (p *codexProvider) LoginCommand(binaryPath string) (string, []string) {
@@ -41,16 +27,5 @@ func (p *codexProvider) LoginCommand(binaryPath string) (string, []string) {
 }
 
 func (p *codexProvider) BuildLaunch(binaryPath, prompt, dir string) (LaunchSpec, error) {
-	prompt = strings.TrimSpace(prompt)
-	if prompt == "" {
-		return LaunchSpec{}, errEmptyPrompt
-	}
-	if strings.TrimSpace(dir) == "" {
-		return LaunchSpec{}, errEmptyDir
-	}
-	return LaunchSpec{
-		Path: binaryPath,
-		Args: []string{prompt},
-		Dir:  dir,
-	}, nil
+	return buildLaunch(binaryPath, prompt, dir)
 }

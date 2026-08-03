@@ -18,40 +18,38 @@ func (p *cursorProvider) InstallHint() string {
 }
 
 func (p *cursorProvider) Version(ctx context.Context, binaryPath string) string {
-	out, _, _ := runQuiet(ctx, binaryPath, "--version")
-	if v := firstNonEmptyLine(out); v != "" {
+	if v := versionFromFlag(ctx, binaryPath); v != "" {
 		return v
 	}
-	out, _, _ = runQuiet(ctx, binaryPath, "about")
+	out, _, _ := runQuiet(ctx, binaryPath, "about")
 	return firstNonEmptyLine(out)
 }
 
+// CheckAuth is bespoke because the Cursor CLI reports status as JSON and can
+// exit zero while signed out, so exit code alone is not conclusive.
 func (p *cursorProvider) CheckAuth(ctx context.Context, binaryPath string) (bool, string) {
 	out, code, err := runQuiet(ctx, binaryPath, "status", "--format", "json")
 	if err != nil && code < 0 {
 		out, code, err = runQuiet(ctx, binaryPath, "status")
 	}
 	if err != nil && code < 0 {
-		return false, "Could not check auth status"
+		return false, msgAuthUnknown
 	}
 
-	lower := strings.ToLower(out)
-	if looksAuthenticated(out, lower) {
-		return true, "Connected"
+	if looksAuthenticated(out) {
+		return true, msgConnected
 	}
-	if strings.Contains(lower, "not authenticated") ||
-		strings.Contains(lower, "not logged") ||
-		strings.Contains(lower, `"authenticated":false`) {
-		return false, "Installed — sign in to connect"
+	if looksUnauthenticated(strings.ToLower(out)) {
+		return false, msgSignIn
 	}
 	if code == 0 && out != "" {
 		// status succeeded without a clear negative signal
-		return true, "Connected"
+		return true, msgConnected
 	}
 	if out != "" {
 		return false, firstNonEmptyLine(out)
 	}
-	return false, "Installed — sign in to connect"
+	return false, msgSignIn
 }
 
 func (p *cursorProvider) LoginCommand(binaryPath string) (string, []string) {
@@ -59,16 +57,5 @@ func (p *cursorProvider) LoginCommand(binaryPath string) (string, []string) {
 }
 
 func (p *cursorProvider) BuildLaunch(binaryPath, prompt, dir string) (LaunchSpec, error) {
-	prompt = strings.TrimSpace(prompt)
-	if prompt == "" {
-		return LaunchSpec{}, errEmptyPrompt
-	}
-	if strings.TrimSpace(dir) == "" {
-		return LaunchSpec{}, errEmptyDir
-	}
-	return LaunchSpec{
-		Path: binaryPath,
-		Args: []string{prompt},
-		Dir:  dir,
-	}, nil
+	return buildLaunch(binaryPath, prompt, dir)
 }

@@ -14,9 +14,22 @@ import (
 )
 
 var (
-	ErrSessionNotFound = errors.New("session not found")
-	ErrInvalidSize     = errors.New("invalid terminal size")
+	ErrSessionNotFound   = errors.New("session not found")
+	ErrSessionNotRunning = errors.New("session is not running")
+	ErrInvalidSize       = errors.New("invalid terminal size")
 )
+
+// Default PTY dimensions, applied when a caller passes zero.
+const (
+	DefaultCols uint16 = 120
+	DefaultRows uint16 = 36
+)
+
+// titleMaxLen bounds the prompt-derived session title shown in a tab.
+const titleMaxLen = 48
+
+// maxDimension is the largest PTY width/height accepted from the UI.
+const maxDimension = 1000
 
 // OutputEvent is emitted when a session produces terminal bytes.
 type OutputEvent struct {
@@ -72,30 +85,39 @@ func (m *Manager) SetHandlers(onOutput func(OutputEvent), onExit func(ExitEvent)
 	m.onExit = onExit
 }
 
-// Start launches a provider CLI inside a PTY.
-func (m *Manager) Start(ctx context.Context, providerID, prompt, folder string, cols, rows uint16) (Info, error) {
-	p, err := providers.ByID(providerID)
-	if err != nil {
-		return Info{}, err
+// StartRequest describes a session to launch.
+//
+// The caller resolves the provider binary and builds Spec, so the manager never
+// re-probes the login-shell PATH — that probe spawns a shell and is already done
+// once at startup.
+type StartRequest struct {
+	ProviderID string
+	Prompt     string // titles the session
+	Spec       providers.LaunchSpec
+	Cols, Rows uint16
+}
+
+// Start launches a prepared command inside a PTY.
+func (m *Manager) Start(ctx context.Context, req StartRequest) (Info, error) {
+	cols, rows := req.Cols, req.Rows
+	if cols == 0 {
+		cols = DefaultCols
 	}
-	pathEnv := providers.LoginShellPATH()
-	bin, err := providers.ResolveBinary(p.BinaryNames(), pathEnv)
-	if err != nil {
-		return Info{}, fmt.Errorf("%s CLI not found: %w", p.Name(), err)
-	}
-	spec, err := p.BuildLaunch(bin, prompt, folder)
-	if err != nil {
-		return Info{}, err
-	}
-	if cols == 0 || rows == 0 {
-		cols, rows = 120, 36
+	if rows == 0 {
+		rows = DefaultRows
 	}
 
 	id := uuid.NewString()
-	title := truncate(prompt, 48)
+	info := Info{
+		ID:       id,
+		Provider: req.ProviderID,
+		Title:    truncate(req.Prompt, titleMaxLen),
+		Folder:   req.Spec.Dir,
+		Running:  true,
+	}
 	sessCtx, cancel := context.WithCancel(ctx)
 
-	writeFn, resizeFn, killFn, err := startPTY(sessCtx, spec, cols, rows, func(b []byte) {
+	writeFn, resizeFn, killFn, err := startPTY(sessCtx, req.Spec, cols, rows, func(b []byte) {
 		m.emitOutput(id, b)
 	}, func(code int) {
 		m.markExited(id, code)
@@ -107,9 +129,9 @@ func (m *Manager) Start(ctx context.Context, providerID, prompt, folder string, 
 
 	s := &session{
 		id:       id,
-		provider: providerID,
-		title:    title,
-		folder:   folder,
+		provider: info.Provider,
+		title:    info.Title,
+		folder:   info.Folder,
 		running:  true,
 		cancel:   cancel,
 		write:    writeFn,
@@ -121,13 +143,19 @@ func (m *Manager) Start(ctx context.Context, providerID, prompt, folder string, 
 	m.sessions[id] = s
 	m.mu.Unlock()
 
-	return Info{
-		ID:       id,
-		Provider: providerID,
-		Title:    title,
-		Folder:   folder,
-		Running:  true,
-	}, nil
+	return info, nil
+}
+
+// lookup returns a session along with a snapshot of its running flag. Both
+// reads happen under the mutex that markExited holds when clearing that flag.
+func (m *Manager) lookup(sessionID string) (s *session, running, found bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s, found = m.sessions[sessionID]
+	if !found {
+		return nil, false, false
+	}
+	return s, s.running, true
 }
 
 // Write sends decoded base64 input to a session.
@@ -136,30 +164,26 @@ func (m *Manager) Write(sessionID, dataB64 string) error {
 	if err != nil {
 		return fmt.Errorf("invalid input encoding: %w", err)
 	}
-	m.mu.Lock()
-	s, ok := m.sessions[sessionID]
-	m.mu.Unlock()
+	s, running, ok := m.lookup(sessionID)
 	if !ok {
 		return ErrSessionNotFound
 	}
-	if !s.running {
-		return fmt.Errorf("session is not running")
+	if !running {
+		return ErrSessionNotRunning
 	}
 	return s.write(raw)
 }
 
 // Resize updates the PTY window size.
 func (m *Manager) Resize(sessionID string, cols, rows int) error {
-	if cols <= 0 || rows <= 0 || cols > 1000 || rows > 1000 {
+	if cols <= 0 || rows <= 0 || cols > maxDimension || rows > maxDimension {
 		return ErrInvalidSize
 	}
-	m.mu.Lock()
-	s, ok := m.sessions[sessionID]
-	m.mu.Unlock()
+	s, running, ok := m.lookup(sessionID)
 	if !ok {
 		return ErrSessionNotFound
 	}
-	if !s.running {
+	if !running {
 		return nil
 	}
 	return s.resize(uint16(cols), uint16(rows))
@@ -167,9 +191,7 @@ func (m *Manager) Resize(sessionID string, cols, rows int) error {
 
 // Stop terminates a running session process.
 func (m *Manager) Stop(sessionID string) error {
-	m.mu.Lock()
-	s, ok := m.sessions[sessionID]
-	m.mu.Unlock()
+	s, _, ok := m.lookup(sessionID)
 	if !ok {
 		return ErrSessionNotFound
 	}
@@ -248,10 +270,14 @@ func (m *Manager) markExited(sessionID string, code int) {
 	}
 }
 
+// truncate shortens s to at most n runes, marking elision with an ellipsis.
 func truncate(s string, n int) string {
 	r := []rune(s)
 	if len(r) <= n {
 		return s
+	}
+	if n <= 1 {
+		return "…"
 	}
 	return string(r[:n-1]) + "…"
 }
