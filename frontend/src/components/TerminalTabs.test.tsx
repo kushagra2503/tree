@@ -41,7 +41,7 @@ describe("TerminalTabs", () => {
         onExited={vi.fn()}
       />
     );
-    expect(screen.getByText(/Terminal, rebuilt around the work/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("New session canvas")).toBeInTheDocument();
   });
 
   it("routes active-session stop and cleanup actions", async () => {

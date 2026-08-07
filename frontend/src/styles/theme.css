@@ -1,21 +1,21 @@
 :root {
-  color-scheme: dark;
-  --bg: #0d1116;
-  --surface-base: #151a20;
-  --surface-deep: #11161b;
-  --surface-raised: #1b2128;
-  --surface-hover: #222a32;
-  --text: #e8ebed;
-  --text-muted: #9ba4ab;
-  --text-dim: #626d76;
-  --border: rgba(184, 197, 207, 0.1);
-  --border-strong: rgba(184, 197, 207, 0.18);
-  --accent: #cd6f51;
-  --accent-soft: #eaa187;
-  --accent-hover: #b85f44;
-  --success: #71b38e;
-  --warning: #c8a15d;
-  --danger: #c65f59;
+  color-scheme: light;
+  --stage: #f2f0e8;
+  --window: #f7f7f4;
+  --panel: #f2f2ef;
+  --canvas: #e8e8e3;
+  --surface: #fbfbf9;
+  --text: #252522;
+  --text-muted: #74746e;
+  --text-faint: #a2a19a;
+  --border: rgba(52, 51, 46, 0.1);
+  --border-strong: rgba(52, 51, 46, 0.17);
+  --blue: #62a9ed;
+  --blue-hover: #4c96dd;
+  --blue-soft: #e7f2fd;
+  --success: #66a77d;
+  --warning: #c79a45;
+  --danger: #bd625c;
   --font-ui: "SF Pro Text", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "SFMono-Regular", "SF Mono", Menlo, Monaco, Consolas, monospace;
 }
@@ -35,7 +35,7 @@ body,
 
 body {
   color: var(--text);
-  background: var(--bg);
+  background: var(--stage);
   font-family: var(--font-ui);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -59,8 +59,8 @@ button:disabled {
 }
 
 ::selection {
-  color: #fff;
-  background: rgba(205, 111, 81, 0.42);
+  color: #163b5d;
+  background: rgba(98, 169, 237, 0.28);
 }
 
 ::-webkit-scrollbar {
@@ -75,11 +75,11 @@ button:disabled {
 ::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 10px;
-  background: rgba(145, 156, 166, 0.25);
+  background: rgba(93, 91, 83, 0.22);
   background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(145, 156, 166, 0.4);
+  background: rgba(93, 91, 83, 0.35);
   background-clip: padding-box;
 }

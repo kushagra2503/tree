@@ -43,25 +43,7 @@ export function TerminalTabs({
           </div>
           <span className="workspace-mode">NEW SESSION</span>
         </div>
-        <div className="terminal-empty">
-          <div className="empty-command-mark" aria-hidden="true">
-            <span>›</span><span>_</span>
-          </div>
-          <p className="eyebrow">AGENT TERMINAL</p>
-          <h2>Terminal, rebuilt around the work.</h2>
-          <p>
-            Pick an agent, choose a project, then describe the outcome. The real CLI runs
-            here with its native prompts and permissions.
-          </p>
-          <div className="empty-context">
-            <span className={selectedProvider?.installed ? "ready" : ""}>
-              <i /> {selectedProvider?.installed ? providerName : "Choose an installed agent"}
-            </span>
-            <span>
-              <i /> {folder ? folder.split("/").filter(Boolean).at(-1) : "No project selected"}
-            </span>
-          </div>
-        </div>
+        <div className="terminal-empty" aria-label="New session canvas" />
       </section>
     );
   }

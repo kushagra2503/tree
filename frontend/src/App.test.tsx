@@ -92,7 +92,7 @@ describe("App", () => {
         36,
       );
     });
-    expect(await screen.findByRole("button", { name: "fix lint" })).toBeInTheDocument();
+    expect((await screen.findAllByRole("button", { name: "fix lint" })).length).toBeGreaterThan(0);
   });
 
   it("keeps a compact shell with Tree branding", async () => {
@@ -100,7 +100,7 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "Tree", level: 1 })).toBeInTheDocument();
     await waitFor(() => expect(mocks.GetProviders).toHaveBeenCalled());
     expect(document.querySelector(".app-shell")).toBeTruthy();
-    expect(document.querySelector(".desktop-grid")).toBeTruthy();
+    expect(document.querySelector(".paper-grid")).toBeTruthy();
     expect(document.querySelector(".provider-list")).toBeTruthy();
   });
 });

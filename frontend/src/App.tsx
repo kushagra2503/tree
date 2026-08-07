@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProviderCards } from "./components/ProviderCards";
 import { PromptComposer } from "./components/PromptComposer";
 import { TerminalTabs } from "./components/TerminalTabs";
@@ -171,8 +171,7 @@ function App() {
 
   const activeSession = sessions.find((session) => session.id === activeId) ?? null;
   const selectedProvider = providers.find((provider) => provider.id === providerId);
-  const projectParts = folder.split("/").filter(Boolean);
-  const projectName = projectParts.at(-1) ?? "No project";
+  const projectName = folder.split("/").filter(Boolean).at(-1) ?? "No project";
   const connectedCount = providers.filter((provider) => provider.authenticated).length;
 
   const onNewSession = () => {
@@ -182,178 +181,210 @@ function App() {
   };
 
   return (
-    <div className="app-shell tree-window">
-      <header className="window-bar">
-        <div className="window-brand">
-          <span className="tree-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M12 3.5v17M12 7.5 7.5 12M12 10.5l5-4M12 14.5l-4 3M12 13l4.5 4" />
-            </svg>
-          </span>
-          <h1>Tree</h1>
-          <span className="window-divider" />
-          <span className="window-context">
-            {activeSession ? activeSession.title : "New session"}
-          </span>
-        </div>
-        <div className="window-status">
-          <span className="connection-indicator">
-            <i /> {loadingProviders ? "Checking agents" : subtitle}
-          </span>
-          <button
-            type="button"
-            className="icon-button"
-            onClick={() => void refresh()}
-            disabled={loadingProviders}
-            aria-label="Refresh apps"
-            title="Refresh apps"
-          >
-            <svg viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M15.4 6.2A6.3 6.3 0 1 0 16 13M15.4 6.2V2.9m0 3.3h-3.3" />
-            </svg>
-          </button>
-        </div>
-      </header>
+    <div className="app-shell paper-stage">
+      <div className="paper-window">
+        <header className="paper-topbar">
+          <div className="paper-home">
+            <span className="tree-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 3.5v17M12 7.5 7.5 12M12 10.5l5-4M12 14.5l-4 3M12 13l4.5 4" />
+              </svg>
+            </span>
+            <h1>Tree</h1>
+          </div>
 
-      <div className="desktop-grid">
-        <aside className="session-sidebar">
-          <div className="side-section-head">
-            <h2>Sessions</h2>
+          <nav className="paper-tabs" aria-label="Session tabs">
+            <button type="button" className="paper-tab dashboard-tab" onClick={onNewSession}>
+              <svg viewBox="0 0 18 18" aria-hidden="true">
+                <rect x="3" y="3" width="4.5" height="4.5" />
+                <rect x="10.5" y="3" width="4.5" height="4.5" />
+                <rect x="3" y="10.5" width="4.5" height="4.5" />
+                <rect x="10.5" y="10.5" width="4.5" height="4.5" />
+              </svg>
+              Dashboard
+            </button>
+            {sessions.map((session) => (
+              <button
+                type="button"
+                className={`paper-tab ${session.id === activeId ? "active" : ""}`}
+                key={session.id}
+                onClick={() => setActiveId(session.id)}
+                title={session.title}
+              >
+                <svg viewBox="0 0 18 18" aria-hidden="true">
+                  <path d="M5 2.8h5l3 3v9.4H5zM10 2.8v3h3" />
+                </svg>
+                <span>{session.title}</span>
+                {session.id === activeId ? <i aria-hidden="true">×</i> : null}
+              </button>
+            ))}
+            {activeId === null ? (
+              <button type="button" className="paper-tab active" onClick={onNewSession}>
+                <svg viewBox="0 0 18 18" aria-hidden="true">
+                  <path d="M5 2.8h5l3 3v9.4H5zM10 2.8v3h3" />
+                </svg>
+                New session
+                <i aria-hidden="true">×</i>
+              </button>
+            ) : null}
+          </nav>
+
+          <div className="paper-top-actions">
+            <div className="agent-avatars" aria-label={`${connectedCount} connected agents`}>
+              {providers.filter((provider) => provider.authenticated).map((provider) => (
+                <span className={`provider-mark provider-mark-${provider.id}`} key={provider.id}>
+                  {provider.id === "claude" ? "A" : provider.id === "codex" ? "O" : "C"}
+                </span>
+              ))}
+            </div>
+            <span className="zoom-label">{loadingProviders ? "…" : `${connectedCount}/3`}</span>
             <button
               type="button"
               className="icon-button"
-              onClick={onNewSession}
-              aria-label="New session"
-              title="New session"
+              onClick={() => void refresh()}
+              disabled={loadingProviders}
+              aria-label="Refresh apps"
+              title="Refresh apps"
             >
               <svg viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M10 4v12M4 10h12" />
+                <path d="M15.4 6.2A6.3 6.3 0 1 0 16 13M15.4 6.2V2.9m0 3.3h-3.3" />
               </svg>
             </button>
           </div>
+        </header>
 
-          <button
-            type="button"
-            className={`new-session-button ${activeId === null ? "active" : ""}`}
-            onClick={onNewSession}
-          >
-            <span>+</span>
-            New session
-            <kbd>⌘N</kbd>
-          </button>
+        <div className="paper-grid">
+          <aside className="session-sidebar">
+            <div className="sidebar-document">
+              <span className="sidebar-document-icon" aria-hidden="true">◆</span>
+              <strong>{projectName === "No project" ? "Tree workspace" : projectName}</strong>
+              <button type="button" className="icon-button" aria-label="Toggle sidebar">
+                <svg viewBox="0 0 20 20" aria-hidden="true">
+                  <rect x="3" y="4" width="14" height="12" />
+                  <path d="M12.5 4v12" />
+                </svg>
+              </button>
+            </div>
 
-          <div className="session-list">
-            {sessions.length === 0 ? (
-              <p className="session-list-empty">Your agent sessions will appear here.</p>
-            ) : (
-              sessions.map((session, index) => (
+            <section className="sidebar-section">
+              <div className="side-section-head">
+                <h2>Pages</h2>
                 <button
                   type="button"
-                  className={`session-item ${session.id === activeId ? "active" : ""}`}
-                  key={session.id}
-                  onClick={() => setActiveId(session.id)}
-                  aria-label={session.title}
+                  className="icon-button"
+                  onClick={onNewSession}
+                  aria-label="New session"
+                  title="New session"
                 >
-                  <span className={`session-number ${session.running ? "running" : ""}`}>
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="session-copy">
-                    <strong>{session.title}</strong>
-                    <small>
-                      {PROVIDER_LABELS[session.provider] ?? session.provider}
-                      <span> · </span>
-                      {session.running ? "running" : "ended"}
-                    </small>
-                  </span>
+                  <svg viewBox="0 0 20 20" aria-hidden="true">
+                    <path d="M10 4v12M4 10h12" />
+                  </svg>
                 </button>
-              ))
-            )}
-          </div>
-
-          <div className="sidebar-footer">
-            <span className="connection-indicator">
-              <i /> {connectedCount} of {providers.length} agents online
-            </span>
-            <span>Local processes only</span>
-          </div>
-        </aside>
-
-        <main className="main-workspace">
-          <TerminalTabs
-            sessions={sessions}
-            activeId={activeId}
-            selectedProvider={selectedProvider}
-            folder={folder}
-            onStop={(id) => void onStop(id)}
-            onClose={(id) => void onClose(id)}
-            onExited={onExited}
-          />
-          <PromptComposer
-            providers={providers}
-            providerId={providerId}
-            folder={folder}
-            prompt={prompt}
-            error={error}
-            busy={busy}
-            onProviderChange={setProviderId}
-            onFolderPick={() => void onFolderPick()}
-            onPromptChange={setPrompt}
-            onRun={() => void onRun()}
-          />
-        </main>
-
-        <aside className="context-sidebar">
-          <section className="project-panel">
-            <div className="side-section-head">
-              <h2>Project</h2>
-              <span className="panel-count">{folder ? "OPEN" : "NONE"}</span>
-            </div>
-            <button type="button" className="project-root" onClick={() => void onFolderPick()}>
-              <span className="folder-icon" aria-hidden="true">
-                <svg viewBox="0 0 20 20">
-                  <path d="M2.8 5.6h5l1.5 1.7h7.9v8.2H2.8z" />
-                </svg>
-              </span>
-              <span>
-                <strong>{projectName}</strong>
-                <small>{folder || "Choose a working directory"}</small>
-              </span>
-            </button>
-            {folder ? (
-              <div className="project-tree" aria-label="Project path">
-                {projectParts.slice(-4).map((part, index, parts) => (
-                  <div
-                    className={index === parts.length - 1 ? "active" : ""}
-                    key={`${part}-${index}`}
-                    style={{ "--tree-depth": index } as CSSProperties}
-                  >
-                    <span>{index === parts.length - 1 ? "◇" : "⌞"}</span>
-                    {part}
-                  </div>
-                ))}
               </div>
-            ) : null}
-          </section>
+              <div className="page-list">
+                <button type="button" className={activeId === null ? "active" : ""} onClick={onNewSession}>
+                  <svg viewBox="0 0 18 18" aria-hidden="true">
+                    <path d="M5 2.8h5l3 3v9.4H5zM10 2.8v3h3" />
+                  </svg>
+                  New session
+                </button>
+                <button type="button" onClick={() => void onFolderPick()}>
+                  <svg viewBox="0 0 18 18" aria-hidden="true">
+                    <path d="M2.8 5.2h5l1.4 1.6h6v7.4H2.8z" />
+                  </svg>
+                  {folder ? projectName : "Choose project"}
+                  {folder ? <span>✓</span> : null}
+                </button>
+              </div>
+            </section>
 
-          <ProviderCards
-            providers={providers}
-            loading={loadingProviders}
-            onConnect={(id) => void onConnect(id)}
-            onRefresh={() => void refresh()}
-          />
+            <section className="sidebar-section sessions-section">
+              <div className="side-section-head">
+                <h2>Sessions</h2>
+                <span>{sessions.length}</span>
+              </div>
+              <div className="session-list">
+                {sessions.length === 0 ? (
+                  <p className="session-list-empty">Sessions will appear here after your first run.</p>
+                ) : (
+                  sessions.map((session) => (
+                    <button
+                      type="button"
+                      className={`session-item ${session.id === activeId ? "active" : ""}`}
+                      key={session.id}
+                      onClick={() => setActiveId(session.id)}
+                      aria-label={session.title}
+                    >
+                      <span className={`session-state ${session.running ? "running" : ""}`} />
+                      <span className="session-copy">
+                        <strong>{session.title}</strong>
+                        <small>{PROVIDER_LABELS[session.provider] ?? session.provider}</small>
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </section>
 
-          <section className="runtime-panel">
-            <div className="side-section-head">
-              <h2>Runtime</h2>
+            <ProviderCards
+              providers={providers}
+              loading={loadingProviders}
+              onConnect={(id) => void onConnect(id)}
+              onRefresh={() => void refresh()}
+            />
+
+            <footer className="sidebar-footer">
+              <span>What’s new</span>
+              <i>•</i>
+              <span>{subtitle}</span>
+            </footer>
+          </aside>
+
+          <nav className="canvas-tools" aria-label="Canvas tools">
+            <button type="button" className="active" aria-label="Select">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 3 9 7-4.3 1.1L8 16z" /></svg>
+            </button>
+            <button type="button" aria-label="Pan">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6.4 9V5.4a1 1 0 0 1 2 0V8m0-2.8a1 1 0 0 1 2 0V8m0-2a1 1 0 0 1 2 0v2.4m0-1.4a1 1 0 0 1 2 0v4.4c0 3-1.9 5.1-4.7 5.1H8.5c-1.5 0-2.5-.8-3.3-2l-1.5-2.3a1 1 0 0 1 1.6-1.2l1.1 1.1z" /></svg>
+            </button>
+            <button type="button" aria-label="Frame">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" /></svg>
+            </button>
+            <button type="button" aria-label="Rectangle">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3.5" y="3.5" width="13" height="13" /></svg>
+            </button>
+          </nav>
+
+          <main className={`main-workspace ${activeId === null ? "new-session-workspace" : ""}`}>
+            <div className="canvas-breadcrumb">
+              <span>{projectName}</span>
+              <i>/</i>
+              <strong>{activeSession?.title ?? "New session"}</strong>
             </div>
-            <dl>
-              <div><dt>Agent</dt><dd>{PROVIDER_LABELS[providerId] ?? providerId}</dd></div>
-              <div><dt>Sessions</dt><dd>{sessions.length}</dd></div>
-              <div><dt>Mode</dt><dd>Interactive</dd></div>
-              <div><dt>Transport</dt><dd>Local PTY</dd></div>
-            </dl>
-          </section>
-        </aside>
+            <TerminalTabs
+              sessions={sessions}
+              activeId={activeId}
+              selectedProvider={selectedProvider}
+              folder={folder}
+              onStop={(id) => void onStop(id)}
+              onClose={(id) => void onClose(id)}
+              onExited={onExited}
+            />
+            <PromptComposer
+              providers={providers}
+              providerId={providerId}
+              folder={folder}
+              prompt={prompt}
+              error={error}
+              busy={busy}
+              expanded={activeId === null}
+              onProviderChange={setProviderId}
+              onFolderPick={() => void onFolderPick()}
+              onPromptChange={setPrompt}
+              onRun={() => void onRun()}
+            />
+          </main>
+        </div>
       </div>
     </div>
   );

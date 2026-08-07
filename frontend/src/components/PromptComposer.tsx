@@ -7,6 +7,7 @@ interface Props {
   prompt: string;
   busy?: boolean;
   error?: string;
+  expanded?: boolean;
   onProviderChange: (id: string) => void;
   onPromptChange: (value: string) => void;
   onFolderPick: () => void;
@@ -20,12 +21,14 @@ export function PromptComposer({
   prompt,
   busy,
   error,
+  expanded = false,
   onProviderChange,
   onPromptChange,
   onFolderPick,
   onRun,
 }: Props) {
   const selected = providers.find((p) => p.id === providerId);
+  const projectName = folder.split("/").filter(Boolean).at(-1) || "new-session";
   const canRun =
     !busy &&
     !!selected?.installed &&
@@ -33,7 +36,15 @@ export function PromptComposer({
     folder.trim().length > 0;
 
   return (
-    <section className="command-composer" aria-label="Prompt composer">
+    <section
+      className={`command-composer ${expanded ? "command-composer-expanded" : ""}`}
+      aria-label="Prompt composer"
+    >
+      <div className="composer-titlebar">
+        <div className="composer-dots" aria-hidden="true"><i /><i /><i /></div>
+        <strong>~/Tree/{projectName}</strong>
+        <span>{PROVIDER_LABELS[providerId] ?? providerId}</span>
+      </div>
       <div className="composer-controls">
         <label className="agent-select">
           <span className="sr-only">App</span>
